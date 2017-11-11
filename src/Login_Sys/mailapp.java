@@ -30,6 +30,7 @@ import java.awt.event.ActionListener;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Properties;
 import java.awt.event.ActionEvent;
@@ -44,6 +45,7 @@ public class mailapp extends JFrame {
 	String s = "";
 	String fpath = "";
 	String user = "";
+	private static mailapp frame;
 
 	/**
 	 * Launch the application.
@@ -52,7 +54,7 @@ public class mailapp extends JFrame {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					mailapp frame = new mailapp();
+					frame = new mailapp();
 					frame.setVisible(true);
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -123,17 +125,35 @@ public class mailapp extends JFrame {
 		JButton send = new JButton("SEND");
 		send.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
+				boolean flag = false;
+				String toid = txtto.getText().toString();
 				try{
 					// 1. Create a connection to database
 					Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/LoginApp","root","toor");
 					// 2. Create  a statement
 					Statement statement = conn.createStatement();
 					// 3. Execute SQL query
-					String sql = "insert into recipient (fromid,toid) values(\"" + user +"\",\""+ txtto.getText().toString() +"\");";
-					statement.executeUpdate(sql);
-					sql = "insert into messages (fromid,message,subj) values(\"" + user +"\",\""+ messageArea.getText().toString() +"\",\""+ txtsubject.getText().toString() +"\");";
-					statement.executeUpdate(sql);
-					sql = "insert into attachments (fromid,attachment,toid) values(\"" + user +"\",\""+ fpath +"\",\""+ txtto.getText().toString() +"\");";
+					String sql;
+					
+					sql = "select * from recipient;";
+					ResultSet set = statement.executeQuery(sql);
+					while(set.next()){
+						if(user.contains(set.getString("fromid"))){
+							if(toid.contains(set.getString("toid")))
+								flag = true;
+						}	
+					}
+					if(!flag){
+						sql = "insert into recipient (fromid,toid,mcount) values(\"" + user +"\",\""+ toid +"\","+1+");";
+						statement.executeUpdate(sql);
+						sql = "insert into messages (fromid,message,subj,mcount) values(\"" + user +"\",\""+ messageArea.getText().toString() +"\",\""+ txtsubject.getText().toString() +"\","+1+");";
+						statement.executeUpdate(sql);
+					}else{
+						sql = "update recipient set mcount = mcount + 1 where fromid = \""+ user +"\" and toid = \""+ toid +"\";";
+						statement.executeUpdate(sql);
+					}
+					
+					sql = "insert into attachments (fromid,attachment,toid) values(\"" + user +"\",\""+ fpath +"\",\""+ toid +"\");";
 					statement.executeUpdate(sql);
 					conn.close();
 				}catch(Exception e3){
@@ -200,10 +220,13 @@ public class mailapp extends JFrame {
 		clear.setBounds(100, 358, 94, 29);
 		contentPane.add(clear);
 		
-		JButton quit = new JButton("QUIT");
+		JButton quit = new JButton("RETURN");
 		quit.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				System.exit(0);
+				Login_S l = new Login_S();
+				l.main(null);
+				setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+				setVisible(false);
 			}
 		});
 		quit.setBounds(206, 358, 94, 29);
